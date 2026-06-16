@@ -1,0 +1,58 @@
+# Smart Cart — Pinned Python Dependencies
+# Python 3.11+  |  Generated for: macOS (MPS), Linux (CUDA/CPU), Windows (CPU)
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# For CUDA support (Linux/Windows GPU):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#   pip install bitsandbytes>=0.42.0   (needed for 4-bit / 8-bit quantization)
+
+# ── Core ML / Transformers ────────────────────────────────────────────────────
+torch>=2.2.0
+torchvision>=0.17.0
+torchaudio>=2.2.0
+transformers>=4.49.0
+accelerate>=0.29.0
+sentencepiece>=0.2.0
+protobuf>=4.25.0
+Pillow>=10.3.0
+
+# ── Quantization (GPU only — comment out if CPU-only) ────────────────────────
+# bitsandbytes>=0.42.0
+
+# ── Qwen VL model processor requirements ─────────────────────────────────────
+qwen-vl-utils>=0.0.8
+flash-attn>=2.5.0; sys_platform == "linux"   # optional but speeds up attention
+
+# ── Vector Database ───────────────────────────────────────────────────────────
+qdrant-client>=1.9.0
+
+# ── FastAPI / Server ──────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# ── Audio ─────────────────────────────────────────────────────────────────────
+# Whisper (openai/whisper-base) is served via HuggingFace `transformers`
+# — no separate openai-whisper package needed.  WhisperFeatureExtractor
+# requires `tokenizers` which is a transitive dep of transformers.
+sounddevice>=0.4.6
+scipy>=1.13.0
+
+# ── Computer Vision ───────────────────────────────────────────────────────────
+opencv-python>=4.9.0.80
+
+# ── PDF Ingestion ─────────────────────────────────────────────────────────────
+pdfplumber>=0.11.0
+pdfminer.six>=20231228
+
+# ── Text-to-Speech ────────────────────────────────────────────────────────────
+pyttsx3>=2.90
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+numpy>=1.26.0
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+requests>=2.32.0

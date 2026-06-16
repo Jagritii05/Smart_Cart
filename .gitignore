@@ -1,0 +1,61 @@
+# Python
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.poetry/
+.pip-wheel-metadata/
+
+# Qdrant local storage and test databases
+qdrant_storage/
+test/
+
+# Next.js and frontend dependencies/builds
+kiosk-ui/node_modules/
+kiosk-ui/.next/
+kiosk-ui/out/
+kiosk-ui/build/
+kiosk-ui/.vercel/
+kiosk-ui/next-env.d.ts
+kiosk-ui/*.tsbuildinfo
+
+# OS Metadata & IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Sensitive / Configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+certs/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# AI Agent / System temporary plan & walkthrough artifacts
+implementation_plan.md
+walkthrough.md
+task.md
+plan.md
+AGENTS.md
+CLAUDE.md
+*.lock

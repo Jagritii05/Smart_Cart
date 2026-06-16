@@ -1,0 +1,102 @@
+[
+  {
+    "product_id": "a1b2c3d4-0001-0001-0001-000000000001",
+    "name": "Amul Taaza Full Cream Milk 1L",
+    "brand": "Amul",
+    "aisle_number": 3,
+    "price": 68.0,
+    "tags": ["vegetarian", "dairy"],
+    "stock_status": true,
+    "description": "Fresh full cream cow's milk with 6% fat. Pasteurised and homogenised. Rich in calcium and protein. Ideal for tea, coffee, and cooking."
+  },
+  {
+    "product_id": "a1b2c3d4-0002-0002-0002-000000000002",
+    "name": "So Good Almond Milk Unsweetened 1L",
+    "brand": "So Good",
+    "aisle_number": 7,
+    "price": 249.0,
+    "tags": ["vegan", "dairy-free", "gluten-free", "low-sugar"],
+    "stock_status": true,
+    "description": "Smooth unsweetened almond milk made from real California almonds. Zero lactose, zero dairy, low in calories. Perfect for smoothies, cereals, and baking."
+  },
+  {
+    "product_id": "a1b2c3d4-0003-0003-0003-000000000003",
+    "name": "Organic India Tulsi Green Tea 25 Bags",
+    "brand": "Organic India",
+    "aisle_number": 12,
+    "price": 195.0,
+    "tags": ["vegan", "organic", "gluten-free", "caffeine-low"],
+    "stock_status": true,
+    "description": "Certified organic green tea blended with holy basil (tulsi). Rich in antioxidants, adaptogenic herbs support immunity and calm focus. No artificial flavours."
+  },
+  {
+    "product_id": "a1b2c3d4-0004-0004-0004-000000000004",
+    "name": "Slurrp Farm Millet Pancake Mix 200g",
+    "brand": "Slurrp Farm",
+    "aisle_number": 5,
+    "price": 289.0,
+    "tags": ["gluten-free", "vegan", "no-maida", "kids-friendly"],
+    "stock_status": true,
+    "description": "Ready-to-cook pancake mix made from jowar, ragi, and oats. No refined flour, no preservatives, no added sugar. Just add water and cook in 5 minutes."
+  },
+  {
+    "product_id": "a1b2c3d4-0005-0005-0005-000000000005",
+    "name": "True Elements Rolled Oats 1kg",
+    "brand": "True Elements",
+    "aisle_number": 5,
+    "price": 349.0,
+    "tags": ["vegan", "gluten-free", "high-fibre", "organic"],
+    "stock_status": true,
+    "description": "100% whole grain rolled oats. No added sugar, no preservatives, no artificial flavours. High in beta-glucan fibre for heart health and sustained energy."
+  },
+  {
+    "product_id": "a1b2c3d4-0006-0006-0006-000000000006",
+    "name": "Epigamia Greek Yogurt Mango 85g",
+    "brand": "Epigamia",
+    "aisle_number": 3,
+    "price": 55.0,
+    "tags": ["vegetarian", "probiotic", "high-protein", "gluten-free"],
+    "stock_status": true,
+    "description": "Thick, strained Greek yogurt in a luscious mango flavour. Contains live probiotic cultures for gut health. 7g protein per cup. No gelatin, no artificial thickeners."
+  },
+  {
+    "product_id": "a1b2c3d4-0007-0007-0007-000000000007",
+    "name": "Down To Earth Organic Red Lentils 500g",
+    "brand": "Down To Earth",
+    "aisle_number": 9,
+    "price": 175.0,
+    "tags": ["vegan", "organic", "gluten-free", "high-protein", "non-gmo"],
+    "stock_status": true,
+    "description": "Certified organic red masoor dal sourced from Madhya Pradesh farms. Stone-sorted and triple-washed. Rich in plant protein and iron. No pesticides, no chemical fertilisers."
+  },
+  {
+    "product_id": "a1b2c3d4-0008-0008-0008-000000000008",
+    "name": "Soulfull Ragi Bites Chocolate 150g",
+    "brand": "Soulfull",
+    "aisle_number": 14,
+    "price": 110.0,
+    "tags": ["vegetarian", "gluten-free", "calcium-rich", "kids-friendly"],
+    "stock_status": false,
+    "description": "Crunchy ragi-based snack bites in chocolate flavour. Made with whole grain finger millet (ragi), naturally rich in calcium. No maida, no palm oil."
+  },
+  {
+    "product_id": "a1b2c3d4-0009-0009-0009-000000000009",
+    "name": "Wellbeing Nutrition Moringa Superfood Powder 100g",
+    "brand": "Wellbeing Nutrition",
+    "aisle_number": 11,
+    "price": 599.0,
+    "tags": ["vegan", "organic", "gluten-free", "superfood", "iron-rich"],
+    "stock_status": true,
+    "description": "Cold-pressed organic moringa (drumstick) leaf powder. Contains 9× more iron than spinach, 17× more calcium than milk. Add a teaspoon to smoothies, dal, or water daily."
+  },
+  {
+    "product_id": "a1b2c3d4-0010-0010-0010-000000000010",
+    "name": "Conscious Food Cold-Pressed Coconut Oil 500ml",
+    "brand": "Conscious Food",
+    "aisle_number": 8,
+    "price": 449.0,
+    "tags": ["vegan", "organic", "dairy-free", "gluten-free", "keto"],
+    "stock_status": true,
+    "description": "Virgin cold-pressed coconut oil extracted without heat or chemicals. Retains natural aroma and medium-chain fatty acids (MCTs). Ideal for cooking, bulletproof coffee, and skin care."
+  }
+]

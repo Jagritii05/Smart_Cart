@@ -1,0 +1,395 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Color Palette */
+  --bg-base:        #0a0a0a;
+  --bg-surface:     #111111;
+  --bg-elevated:    #1a1a1a;
+  --bg-glass:       hsla(0, 0%, 100%, 0.03);
+  --bg-glass-hover: hsla(0, 0%, 100%, 0.06);
+
+  --accent-primary:   #ffffff;
+  --accent-secondary: #34d399; /* Emerald */
+  --accent-amber:     #fbbf24;
+  --accent-rose:      #f87171;
+
+  --text-primary:   #ededed;
+  --text-secondary: #a1a1aa;
+  --text-muted:     #71717a;
+
+  --border-subtle:  hsla(0, 0%, 100%, 0.1);
+  --border-visible: hsla(0, 0%, 100%, 0.15);
+  --border-accent:  hsla(0, 0%, 100%, 0.25);
+
+  /* Spacing */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 2px hsla(0, 0%, 0%, 0.5);
+  --shadow-md:   0 4px 12px hsla(0, 0%, 0%, 0.6);
+  --shadow-lg:   0 8px 24px hsla(0, 0%, 0%, 0.7);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Transitions */
+  --transition-fast:   150ms ease-out;
+  --transition-normal: 250ms ease-out;
+  --transition-slow:   400ms ease-out;
+}
+
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, textarea { font-family: inherit; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-visible);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Animations ────────────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);    opacity: 1; }
+  100% { transform: scale(2.5);  opacity: 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes waveform {
+  0%, 100% { height: 4px; }
+  50%       { height: 20px; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-primary-glow); }
+  50%       { box-shadow: 0 0 40px var(--accent-primary-glow), 0 0 80px var(--accent-primary-glow); }
+}
+
+/* ── Glassmorphism Card (Refined) ──────────────────────────────────────────── */
+.glass-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.glass-card:hover {
+  border-color: var(--border-visible);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: #000000;
+  border: 1px solid transparent;
+}
+.btn-primary:hover {
+  background: #e5e5e5;
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: 1px solid var(--border-visible);
+  backdrop-filter: blur(10px);
+}
+.btn-secondary:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-accent);
+}
+
+.btn-danger {
+  background: hsla(350, 80%, 60%, 0.15);
+  color: var(--accent-rose);
+  border: 1px solid hsla(350, 80%, 60%, 0.3);
+}
+.btn-danger:hover {
+  background: hsla(350, 80%, 60%, 0.25);
+}
+
+.btn-success {
+  background: hsla(158, 65%, 48%, 0.15);
+  color: var(--accent-secondary);
+  border: 1px solid hsla(158, 65%, 48%, 0.3);
+}
+.btn-success:hover {
+  background: hsla(158, 65%, 48%, 0.25);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-lg { padding: 14px 28px; font-size: 1rem; border-radius: var(--radius-lg); }
+.btn-sm { padding: 7px 14px; font-size: 0.8rem; border-radius: var(--radius-sm); }
+.btn-icon { padding: 10px; border-radius: var(--radius-full); min-width: 42px; }
+
+/* ── Badge ─────────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.badge-green {
+  background: hsla(158, 65%, 48%, 0.15);
+  color: var(--accent-secondary);
+  border: 1px solid hsla(158, 65%, 48%, 0.3);
+}
+.badge-indigo {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+.badge-amber {
+  background: hsla(38, 95%, 58%, 0.15);
+  color: var(--accent-amber);
+  border: 1px solid hsla(38, 95%, 58%, 0.3);
+}
+.badge-rose {
+  background: hsla(350, 80%, 60%, 0.15);
+  color: var(--accent-rose);
+  border: 1px solid hsla(350, 80%, 60%, 0.3);
+}
+.badge-muted {
+  background: var(--bg-glass);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Status Dot ────────────────────────────────────────────────────────────── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+.status-dot.online  { background: var(--accent-secondary); }
+.status-dot.offline { background: var(--accent-rose); }
+.status-dot.loading { background: var(--accent-amber); }
+.status-dot.online::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+/* ── Input ─────────────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--text-primary);
+}
+
+/* ── Skeleton Loader ────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-glass-hover) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Divider ───────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0;
+}
+
+/* ── Spinner ───────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-visible);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Section Label ─────────────────────────────────────────────────────────── */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Background Gradient (Flattened) ───────────────────────────────────────── */
+.bg-gradient-radial {
+  background: var(--bg-base);
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  position: relative;
+  transition: color var(--transition-fast);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+}
+
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--text-primary);
+}
+
+/* ── Slide-out Drawer ──────────────────────────────────────────────────────── */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: hsla(0, 0%, 0%, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  width: 400px;
+  max-width: 90vw;
+  background: var(--bg-surface);
+  height: 100%;
+  border-left: 1px solid var(--border-visible);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  transition: transform var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-overlay.open .drawer {
+  transform: translateX(0);
+}
+
