@@ -24,6 +24,7 @@ from config import (
     VECTOR_NUTRITION_PDF,
     VECTOR_AUDIO_WAVEFORM,
     VECTOR_DIM,
+    TEXT_EMBED_DIM,
     WHISPER_EMBED_DIM,
 )
 
@@ -42,52 +43,48 @@ def get_qdrant_client() -> QdrantClient:
 
 def create_collection(client: QdrantClient, vector_dim: Optional[int] = None) -> None:
     """
-    Create the 'smart_cart_products' collection with four named vectors
-    (barcode_visual, voice_query, nutrition_pdf, audio_waveform), all stored on disk.
+    Create the 'smart_cart_products' collection with four named vectors.
 
-    The first three vectors share the Qwen embedding dimension (``vector_dim``).
-    The ``audio_waveform`` vector uses the fixed Whisper encoder dimension
-    (``WHISPER_EMBED_DIM`` = 512) regardless of what the Qwen model resolves to.
+    barcode_visual  — CLIP 512-dim image embedding space (image search)
+    voice_query     — MiniLM 384-dim text embedding space (text/voice search)
+    nutrition_pdf   — MiniLM 384-dim text embedding space (PDF content)
+    audio_waveform  — Whisper 512-dim acoustic embedding space (raw audio)
 
-    If the collection already exists this function is a no-op so that
-    re-running the ingest script never destroys existing data.
+    If the collection already exists this function is a no-op.
 
     Args:
         client:     An initialised QdrantClient instance.
-        vector_dim: Override the dimension from config (used when the
-                    embed model resolves its own output size at runtime).
+        vector_dim: CLIP image embedding dim override (default: VECTOR_DIM=512).
     """
-    dim = vector_dim or VECTOR_DIM
+    img_dim = vector_dim or VECTOR_DIM
 
     existing = [c.name for c in client.get_collections().collections]
     if COLLECTION_NAME in existing:
         logger.info("Collection '%s' already exists — skipping creation.", COLLECTION_NAME)
         return
 
-    # All Qwen-based named vectors share the same cosine distance metric
-    # and are persisted on disk (on_disk=True).
-    # audio_waveform uses a separate fixed dimension (Whisper encoder output).
     named_vectors = {
+        # CLIP image embeddings — 512-dim
         VECTOR_BARCODE_VISUAL: VectorParams(
-            size=dim,
+            size=img_dim,
             distance=Distance.COSINE,
             on_disk=True,
             hnsw_config=HnswConfigDiff(on_disk=True),
         ),
+        # sentence-transformers MiniLM text embeddings — 384-dim
         VECTOR_VOICE_QUERY: VectorParams(
-            size=dim,
+            size=TEXT_EMBED_DIM,
             distance=Distance.COSINE,
             on_disk=True,
             hnsw_config=HnswConfigDiff(on_disk=True),
         ),
         VECTOR_NUTRITION_PDF: VectorParams(
-            size=dim,
+            size=TEXT_EMBED_DIM,
             distance=Distance.COSINE,
             on_disk=True,
             hnsw_config=HnswConfigDiff(on_disk=True),
         ),
-        # Native acoustic embedding vector — Whisper encoder output space (512-dim).
-        # Stored separately from the Qwen vectors so both spaces remain clean.
+        # Whisper acoustic embedding — 512-dim
         VECTOR_AUDIO_WAVEFORM: VectorParams(
             size=WHISPER_EMBED_DIM,
             distance=Distance.COSINE,
@@ -102,9 +99,10 @@ def create_collection(client: QdrantClient, vector_dim: Optional[int] = None) ->
         optimizers_config=OptimizersConfigDiff(memmap_threshold=10_000),
     )
     logger.info(
-        "Collection '%s' created — Qwen dim=%d, Whisper audio dim=%d, on_disk vectors.",
+        "Collection '%s' created — CLIP img=%d, MiniLM text=%d, Whisper audio=%d, on_disk.",
         COLLECTION_NAME,
-        dim,
+        img_dim,
+        TEXT_EMBED_DIM,
         WHISPER_EMBED_DIM,
     )
 

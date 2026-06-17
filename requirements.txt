@@ -13,6 +13,7 @@ torch>=2.2.0
 torchvision>=0.17.0
 torchaudio>=2.2.0
 transformers>=4.40.0   # CLIPModel, CLIPProcessor, Whisper all ship with transformers
+sentence-transformers>=3.0.0  # MiniLM-L6-v2 for text/voice query embeddings
 accelerate>=0.29.0
 sentencepiece>=0.2.0
 protobuf>=4.25.0

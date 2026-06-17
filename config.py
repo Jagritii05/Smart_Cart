@@ -36,7 +36,8 @@ VECTOR_AUDIO_WAVEFORM: str = "audio_waveform"
 # Qwen3-VL-2B-Instruct hidden_size = 1536. This is the dimension of mean-pooled
 # last hidden states used as cross-modal embeddings.
 # Whisper-base encoder outputs 512 dims — audio_waveform vector stays at 512.
-VECTOR_DIM: int = 512
+VECTOR_DIM: int = 512          # CLIP image embedding dimension
+TEXT_EMBED_DIM: int = 384      # sentence-transformers MiniLM text embedding dimension
 WHISPER_EMBED_DIM: int = 512
 
 # ─── Qdrant / Retrieval Defaults ──────────────────────────────────────────────

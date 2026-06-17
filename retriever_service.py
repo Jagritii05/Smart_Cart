@@ -22,6 +22,7 @@ from config import (
     DEFAULT_TOP_K,
 )
 from embed_service import EmbedService
+from text_embed_service import TextEmbedService
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +37,9 @@ class RetrieverService:
     """
 
     def __init__(self, client: QdrantClient, embed_service: EmbedService) -> None:
-        """
-        Initialise with an existing Qdrant client and embed service.
-
-        Args:
-            client:        A file-backed QdrantClient instance.
-            embed_service: The singleton EmbedService for on-the-fly embedding.
-        """
         self._client = client
         self._embed = embed_service
+        self._text_embed = TextEmbedService.get_instance()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -143,7 +138,7 @@ class RetrieverService:
         Returns:
             List of in-stock product dicts sorted by descending similarity score.
         """
-        vector = self._embed.embed(query_str, modality="text")
+        vector = self._text_embed.embed(query_str)
         conditions = self._base_conditions(store_id)
         conditions.append(
             FieldCondition(key="stock_status", match=MatchValue(value=True))

@@ -7,7 +7,7 @@
     "price": 68.0,
     "tags": ["vegetarian", "dairy"],
     "stock_status": true,
-    "description": "Fresh full cream cow's milk with 6% fat. Pasteurised and homogenised. Rich in calcium and protein. Ideal for tea, coffee, and cooking."
+    "description": "Regular cow dairy milk. Traditional full cream milk for drinking and cooking. The standard everyday milk people look for."
   },
   {
     "product_id": "a1b2c3d4-0002-0002-0002-000000000002",
@@ -17,7 +17,7 @@
     "price": 249.0,
     "tags": ["vegan", "dairy-free", "gluten-free", "low-sugar"],
     "stock_status": true,
-    "description": "Smooth unsweetened almond milk made from real California almonds. Zero lactose, zero dairy, low in calories. Perfect for smoothies, cereals, and baking."
+    "description": "Dairy-free almond milk alternative. Plant-based beverage for lactose intolerant people. Unsweetened nut milk."
   },
   {
     "product_id": "a1b2c3d4-0003-0003-0003-000000000003",
@@ -27,7 +27,7 @@
     "price": 195.0,
     "tags": ["vegan", "organic", "gluten-free", "caffeine-low"],
     "stock_status": true,
-    "description": "Certified organic green tea blended with holy basil (tulsi). Rich in antioxidants, adaptogenic herbs support immunity and calm focus. No artificial flavours."
+    "description": "Organic herbal green tea bags with tulsi holy basil. Hot drink beverage. Antioxidant immunity booster tea."
   },
   {
     "product_id": "a1b2c3d4-0004-0004-0004-000000000004",
@@ -37,7 +37,7 @@
     "price": 289.0,
     "tags": ["gluten-free", "vegan", "no-maida", "kids-friendly"],
     "stock_status": true,
-    "description": "Ready-to-cook pancake mix made from jowar, ragi, and oats. No refined flour, no preservatives, no added sugar. Just add water and cook in 5 minutes."
+    "description": "Kids breakfast pancake mix. Quick morning meal for children made from millet jowar ragi. Healthy kids food."
   },
   {
     "product_id": "a1b2c3d4-0005-0005-0005-000000000005",
@@ -47,7 +47,7 @@
     "price": 349.0,
     "tags": ["vegan", "gluten-free", "high-fibre", "organic"],
     "stock_status": true,
-    "description": "100% whole grain rolled oats. No added sugar, no preservatives, no artificial flavours. High in beta-glucan fibre for heart health and sustained energy."
+    "description": "Whole grain rolled oats for oatmeal porridge. Breakfast cereal high in fibre. Heart healthy whole grain."
   },
   {
     "product_id": "a1b2c3d4-0006-0006-0006-000000000006",
@@ -57,7 +57,7 @@
     "price": 55.0,
     "tags": ["vegetarian", "probiotic", "high-protein", "gluten-free"],
     "stock_status": true,
-    "description": "Thick, strained Greek yogurt in a luscious mango flavour. Contains live probiotic cultures for gut health. 7g protein per cup. No gelatin, no artificial thickeners."
+    "description": "Probiotic live culture yogurt for gut health. Thick Greek yogurt with good bacteria. Fermented dairy food high in protein."
   },
   {
     "product_id": "a1b2c3d4-0007-0007-0007-000000000007",
@@ -67,7 +67,7 @@
     "price": 175.0,
     "tags": ["vegan", "organic", "gluten-free", "high-protein", "non-gmo"],
     "stock_status": true,
-    "description": "Certified organic red masoor dal sourced from Madhya Pradesh farms. Stone-sorted and triple-washed. Rich in plant protein and iron. No pesticides, no chemical fertilisers."
+    "description": "Organic red lentils masoor dal. High protein vegan legume. Plant protein source for dal curry soup."
   },
   {
     "product_id": "a1b2c3d4-0008-0008-0008-000000000008",
@@ -77,7 +77,7 @@
     "price": 110.0,
     "tags": ["vegetarian", "gluten-free", "calcium-rich", "kids-friendly"],
     "stock_status": false,
-    "description": "Crunchy ragi-based snack bites in chocolate flavour. Made with whole grain finger millet (ragi), naturally rich in calcium. No maida, no palm oil."
+    "description": "Chocolate ragi millet snack bites. Crunchy kids snack with calcium. Finger millet whole grain children snack."
   },
   {
     "product_id": "a1b2c3d4-0009-0009-0009-000000000009",
@@ -87,7 +87,7 @@
     "price": 599.0,
     "tags": ["vegan", "organic", "gluten-free", "superfood", "iron-rich"],
     "stock_status": true,
-    "description": "Cold-pressed organic moringa (drumstick) leaf powder. Contains 9× more iron than spinach, 17× more calcium than milk. Add a teaspoon to smoothies, dal, or water daily."
+    "description": "Moringa leaf powder supplement. Extremely high iron content superfood. Iron rich nutritional powder for deficiency."
   },
   {
     "product_id": "a1b2c3d4-0010-0010-0010-000000000010",
@@ -97,6 +97,6 @@
     "price": 449.0,
     "tags": ["vegan", "organic", "dairy-free", "gluten-free", "keto"],
     "stock_status": true,
-    "description": "Virgin cold-pressed coconut oil extracted without heat or chemicals. Retains natural aroma and medium-chain fatty acids (MCTs). Ideal for cooking, bulletproof coffee, and skin care."
+    "description": "Cold-pressed virgin coconut oil. Keto cooking oil with MCT medium chain fatty acids. Pure coconut fat for cooking."
   }
 ]

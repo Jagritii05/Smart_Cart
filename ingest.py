@@ -39,6 +39,7 @@ from config import (
 )
 from audio_embed_service import AudioEmbedService
 from embed_service import EmbedService
+from text_embed_service import TextEmbedService
 from qdrant_setup import get_qdrant_client, create_collection
 
 logging.basicConfig(
@@ -201,13 +202,14 @@ def ingest(products_path: Optional[Path] = None, store_id: int = DEFAULT_STORE_I
     logger.info("Loaded %d products from %s", len(products), products_path)
 
     # Boot services
-    embed_svc = EmbedService()
+    embed_svc = EmbedService()           # CLIP — image embeddings
+    text_svc = TextEmbedService.get_instance()  # MiniLM — text/voice embeddings
     audio_svc = AudioEmbedService.get_instance()
     client = get_qdrant_client()
 
-    # Resolve vector dim from the live model and create collection if needed
+    # CLIP image dim drives barcode_visual; text dim is fixed at 384
     vector_dim = embed_svc.vector_dim
-    logger.info("Resolved vector dimension: %d", vector_dim)
+    logger.info("CLIP image dim: %d, text dim: %d", vector_dim, text_svc.vector_dim)
     create_collection(client, vector_dim=vector_dim)
 
     points: list[PointStruct] = []
@@ -228,17 +230,15 @@ def ingest(products_path: Optional[Path] = None, store_id: int = DEFAULT_STORE_I
             frame = load_product_image(product_id)
             vis_vec = embed_svc.embed(frame, modality="image")
 
-            # ── voice_query vector ───────────────────────────────────────────────
+            # ── voice_query vector (MiniLM sentence embedding) ───────────────────
             voice_text = f"{name}. {description}".strip()
-            voice_vec = embed_svc.embed(voice_text, modality="text")
+            voice_vec = text_svc.embed(voice_text)
 
-            # ── nutrition_pdf vector ────────────────────────────────────────────
+            # ── nutrition_pdf vector (MiniLM sentence embedding) ────────────────
             pdf_text = load_pdf_text(product_id)
             if pdf_text:
-                pdf_vec = embed_svc.embed(pdf_text, modality="pdf_chunk")
+                pdf_vec = text_svc.embed(pdf_text)
             else:
-                # Fall back to voice_query embedding so the named vector
-                # is always populated (Qdrant requires all named vectors).
                 pdf_vec = voice_vec
                 logger.debug("No PDF for %s — using voice_query vec as fallback.", product_id)
 
