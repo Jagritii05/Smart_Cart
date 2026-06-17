@@ -91,6 +91,7 @@ class AgentService:
         user_input: "np.ndarray | str",
         input_type: InputType,
         aisle_number: Optional[int] = None,
+        products: Optional[list[dict]] = None,
     ) -> str:
         """
         Execute the full agentic RAG loop and return a spoken recommendation.
@@ -99,12 +100,17 @@ class AgentService:
             user_input:   A text string, audio waveform, or BGR image frame.
             input_type:   One of "text", "audio", or "image".
             aisle_number: Optional aisle filter restriction (visual queries only).
+            products:     Pre-fetched product list from the endpoint. When
+                          provided the internal retrieval step is skipped so
+                          Gemma always reasons about the exact same products
+                          that are shown to the customer.
 
         Returns:
             Natural-language recommendation string from Gemma.
         """
-        # Step 1 & 2 — retrieve relevant products
-        products = self._retrieve(user_input, input_type, aisle_number=aisle_number)
+        # Step 1 & 2 — retrieve relevant products (skipped when pre-fetched)
+        if products is None:
+            products = self._retrieve(user_input, input_type, aisle_number=aisle_number)
 
         if not products:
             fallback = (
@@ -178,10 +184,14 @@ class AgentService:
         Returns:
             Stripped response string from Gemma.
         """
-        prompt = (
-            f"<start_of_turn>system\n{_SYSTEM_PROMPT}<end_of_turn>\n"
-            f"<start_of_turn>user\n{context}<end_of_turn>\n"
-            f"<start_of_turn>model\n"
+        messages = [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": context},
+        ]
+        prompt = self._tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
         )
 
         inputs = self._tokenizer(
@@ -235,26 +245,15 @@ class AgentService:
                 REASONING_MODEL_NAME,
                 quantization_config=quant_config,
                 device_map="auto",
-                trust_remote_code=True,
-            )
-        elif GEMMA_LOAD_IN_8BIT:
-            quant_config = BitsAndBytesConfig(load_in_8bit=True)
-            model = AutoModelForCausalLM.from_pretrained(
-                REASONING_MODEL_NAME,
-                quantization_config=quant_config,
-                device_map="auto",
-                trust_remote_code=True,
             )
         else:
-            # CPU / MPS path — load in float32 without bitsandbytes
+            # CPU / MPS: device_map is not supported on these backends.
+            # Load to CPU first (safe), then move to target device.
             model = AutoModelForCausalLM.from_pretrained(
                 REASONING_MODEL_NAME,
                 torch_dtype=torch.float32,
-                trust_remote_code=True,
-                device_map=REASONING_DEVICE if REASONING_DEVICE != "cpu" else None,
             )
-            if REASONING_DEVICE == "cpu":
-                model = model.to("cpu")
+            model = model.to(REASONING_DEVICE)
 
         model.eval()
         logger.info("Reasoning model loaded.")

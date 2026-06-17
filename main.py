@@ -17,7 +17,11 @@ import asyncio
 import io
 import json
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
+
+from dotenv import load_dotenv
+load_dotenv()  # picks up HF_TOKEN from .env so Gemma download works without env var juggling
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import Optional
@@ -107,9 +111,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Smart Cart kiosk starting — loading models …")
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
-    # 1. Load Qwen embedding model (CPU)
+    # 1. Load CLIP embedding model (CPU)
     _embed_svc = await loop.run_in_executor(
         _executor, EmbedService.get_instance
     )
@@ -142,7 +146,7 @@ async def lifespan(app: FastAPI):
     )
 
     _models_loaded = True
-    logger.info("All models loaded (Qwen + Whisper + Gemma) — kiosk server is ready.")
+    logger.info("All models loaded (CLIP + Whisper + Gemma) — kiosk server is ready.")
 
     yield
 
@@ -195,7 +199,7 @@ def _to_product_results(products: list[dict]) -> list[ProductResult]:
 
 async def _run_in_executor(fn, *args):
     """Dispatch a blocking callable to the thread-pool executor."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_executor, partial(fn, *args))
 
 
@@ -238,7 +242,8 @@ async def query_text(body: TextQueryRequest) -> QueryResponse:
         products = _retriever_svc.search_by_text(
             body.query, tags=body.tags, store_id=body.store_id
         )
-        response = _agent_svc.respond(body.query, input_type="text")
+        # Pass pre-fetched products so Gemma reasons about the same items the UI shows
+        response = _agent_svc.respond(body.query, input_type="text", products=products)
         return response, products
 
     try:
@@ -283,7 +288,10 @@ async def query_image(
             raise ValueError("Could not decode uploaded image. Ensure it is a valid JPEG/PNG.")
 
         products = _retriever_svc.search_by_image(frame, aisle_number=aisle_number)
-        response = _agent_svc.respond(frame, input_type="image", aisle_number=aisle_number)
+        # Pass pre-fetched products so Gemma reasons about the same items the UI shows
+        response = _agent_svc.respond(
+            frame, input_type="image", aisle_number=aisle_number, products=products
+        )
         return response, products
 
     try:
@@ -360,8 +368,12 @@ async def query_audio(file: UploadFile = File(...)) -> QueryResponse:
         # ── Step 2: Semantic text search ─────────────────────────────────────
         products = _retriever_svc.search_by_text(transcribed_text)
 
-        # ── Step 3: Gemma retail agent (text path) ────────────────────────────
-        response = _agent_svc.respond(transcribed_text, input_type="audio")
+        # ── Step 3: Gemma retail agent ────────────────────────────────────────
+        # Pass pre-fetched products so Gemma reasons about the same items the UI
+        # shows, and use input_type="audio" only to trigger TTS playback.
+        response = _agent_svc.respond(
+            transcribed_text, input_type="audio", products=products
+        )
 
         return response, products
 

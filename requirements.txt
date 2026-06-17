@@ -6,24 +6,20 @@
 #
 # For CUDA support (Linux/Windows GPU):
 #   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-#   pip install bitsandbytes>=0.42.0   (needed for 4-bit / 8-bit quantization)
+#   pip install bitsandbytes>=0.42.0   (needed for 4-bit quantization on CUDA)
 
 # ── Core ML / Transformers ────────────────────────────────────────────────────
 torch>=2.2.0
 torchvision>=0.17.0
 torchaudio>=2.2.0
-transformers>=4.49.0
+transformers>=4.40.0   # CLIPModel, CLIPProcessor, Whisper all ship with transformers
 accelerate>=0.29.0
 sentencepiece>=0.2.0
 protobuf>=4.25.0
 Pillow>=10.3.0
 
-# ── Quantization (GPU only — comment out if CPU-only) ────────────────────────
+# ── Quantization (CUDA only — comment out on CPU/MPS) ────────────────────────
 # bitsandbytes>=0.42.0
-
-# ── Qwen VL model processor requirements ─────────────────────────────────────
-qwen-vl-utils>=0.0.8
-flash-attn>=2.5.0; sys_platform == "linux"   # optional but speeds up attention
 
 # ── Vector Database ───────────────────────────────────────────────────────────
 qdrant-client>=1.9.0
@@ -34,9 +30,7 @@ uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
-# Whisper (openai/whisper-base) is served via HuggingFace `transformers`
-# — no separate openai-whisper package needed.  WhisperFeatureExtractor
-# requires `tokenizers` which is a transitive dep of transformers.
+# Whisper (openai/whisper-base) is served via HuggingFace `transformers`.
 sounddevice>=0.4.6
 scipy>=1.13.0
 
@@ -50,7 +44,7 @@ pdfminer.six>=20231228
 # ── Text-to-Speech ────────────────────────────────────────────────────────────
 pyttsx3>=2.90
 
-# ── Utilities ────────────────────────────────────────────────────────────────
+# ── Utilities ─────────────────────────────────────────────────────────────────
 numpy>=1.26.0
 pydantic>=2.7.0
 python-dotenv>=1.0.0

@@ -3,7 +3,9 @@
  * All calls go through Next.js proxy rewrites (/api/* → localhost:8000/*).
  */
 
-export const API_BASE = "/api";
+// Call FastAPI directly — bypasses Next.js proxy and its 30-second timeout.
+// Gemma inference on MPS can take several minutes; direct connection handles that.
+export const API_BASE = "http://localhost:8000";
 export const WS_URL =
   typeof window !== "undefined"
     ? `ws://${window.location.hostname}:8000/ws/kiosk`

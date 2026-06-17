@@ -133,13 +133,29 @@ def synthesise_speech(text: str) -> Optional[np.ndarray]:
         engine.save_to_file(text, "_tmp_tts.wav")
         engine.runAndWait()
 
-        # pyttsx3.save_to_file writes to disk; read back and clean up
+        # pyttsx3.save_to_file writes to disk; read back and clean up.
+        # On macOS, NSSpeechSynthesizer outputs AIFF (not WAV); fall back to
+        # Python's built-in aifc module when scipy's WAV reader rejects it.
         import os  # noqa: PLC0415
         if not os.path.exists("_tmp_tts.wav"):
             logger.warning("pyttsx3 did not produce _tmp_tts.wav — falling back.")
             return None
 
-        sr, data = scipy.io.wavfile.read("_tmp_tts.wav")
+        try:
+            sr, data = scipy.io.wavfile.read("_tmp_tts.wav")
+        except ValueError:
+            # macOS pyttsx3 produces AIFF (not RIFF WAV) — read with aifc.
+            import aifc  # noqa: PLC0415
+            with aifc.open("_tmp_tts.wav", "rb") as af:
+                sr = af.getframerate()
+                n_channels = af.getnchannels()
+                sampwidth = af.getsampwidth()
+                raw = af.readframes(af.getnframes())
+            # AIFF samples are big-endian signed integers
+            dtype = {1: np.int8, 2: ">i2", 4: ">i4"}.get(sampwidth, ">i2")
+            data = np.frombuffer(raw, dtype=np.dtype(dtype))
+            if n_channels > 1:
+                data = data.reshape(-1, n_channels).mean(axis=1)
         os.remove("_tmp_tts.wav")
 
         # Convert to float32 mono
