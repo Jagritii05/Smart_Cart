@@ -1,16 +1,18 @@
 """
-embed_service.py — Unified multimodal embedding service using Qwen3-VL-2B.
+embed_service.py — Unified multimodal embedding service using CLIP ViT-B/32.
 
-Qwen/Qwen3-VL-2B-Instruct processes text and images through the same
-transformer backbone, giving 1536-dim hidden-state embeddings in a shared
-cosine space.  Mean-pooling the last hidden states + L2 normalisation is
-the standard extraction recipe for decoder-based VLMs.
+openai/clip-vit-base-patch32 was trained with contrastive image-text alignment:
+text and images for the same concept land in the same 512-dim cosine space.
+This makes cross-modal product search accurate without any bridging.
 
-Why Qwen3-VL over CLIP for a retail kiosk:
-  - Reads product labels, barcodes, and packaging text in-image (OCR-aware)
-  - Handles real-world camera frames (blur, angle, mixed lighting)
-  - Text and image share the same transformer token space — no separate
-    projection heads or modality-gap bridging needed.
+Why CLIP for text/voice queries and not Qwen3-VL:
+  Qwen3-VL is a generative decoder — its hidden states are optimised for
+  next-token prediction, not cosine similarity. CLIP was trained specifically
+  to pull matching text-image pairs together in a shared embedding space,
+  which is exactly what semantic retrieval needs.
+
+Qwen3-VL handles camera/barcode image queries via its vision encoder —
+that is where its label-reading and OCR capabilities matter most.
 
 Audio waveforms are routed to AudioEmbedService (Whisper encoder, 512-dim).
 """
@@ -21,6 +23,7 @@ from typing import Literal, Optional
 import numpy as np
 import torch
 from PIL import Image
+from transformers import CLIPModel, CLIPProcessor
 
 from config import EMBED_MODEL_NAME, EMBED_DEVICE
 
@@ -31,9 +34,9 @@ ModalityType = Literal["image", "audio", "text", "pdf_chunk"]
 
 class EmbedService:
     """
-    Singleton embedding service backed by Qwen3-VL-2B-Instruct.
+    Singleton embedding service backed by CLIP ViT-B/32.
 
-    Text and image modalities share a 1536-dim cosine embedding space.
+    Text and image modalities share a 512-dim cosine embedding space.
     Audio is handled by AudioEmbedService (Whisper encoder, 512-dim).
     """
 
@@ -47,48 +50,22 @@ class EmbedService:
         return cls._instance
 
     def __init__(self) -> None:
-        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration  # noqa: PLC0415
-
-        logger.info(
-            "Loading Qwen3-VL model '%s' on device '%s' …", EMBED_MODEL_NAME, EMBED_DEVICE
-        )
-        self.processor = AutoProcessor.from_pretrained(
-            EMBED_MODEL_NAME,
-            trust_remote_code=True,
-        )
-        self.model = Qwen3VLForConditionalGeneration.from_pretrained(
+        logger.info("Loading CLIP model '%s' on device '%s' …", EMBED_MODEL_NAME, EMBED_DEVICE)
+        self.processor = CLIPProcessor.from_pretrained(EMBED_MODEL_NAME)
+        self.model = CLIPModel.from_pretrained(
             EMBED_MODEL_NAME,
             torch_dtype=torch.float32,
         )
         self.model = self.model.to(EMBED_DEVICE)
         self.model.eval()
-
-        # hidden_size is the dimension of mean-pooled last hidden states.
-        # Qwen3-VL-2B-Instruct: hidden_size = 1536.
-        self._vector_dim: int = self.model.config.text_config.hidden_size
-        logger.info(
-            "Qwen3-VL loaded — hidden_size=%d, device=%s",
-            self._vector_dim,
-            EMBED_DEVICE,
-        )
-
-    # ── Public API ────────────────────────────────────────────────────────────
+        self._vector_dim: int = self.model.config.projection_dim  # 512
+        logger.info("CLIP loaded — projection_dim=%d, device=%s", self._vector_dim, EMBED_DEVICE)
 
     def embed(
         self,
         input_data: "np.ndarray | str",
         modality: ModalityType,
     ) -> list[float]:
-        """
-        Embed *input_data* into a normalised L2 float32 vector.
-
-        Args:
-            input_data: BGR numpy frame (image), float32 waveform (audio), or str.
-            modality:   One of "image", "audio", "text", "pdf_chunk".
-
-        Returns:
-            L2-normalised list[float] of length ``vector_dim`` (1536).
-        """
         if modality == "image":
             return self._embed_image(input_data)  # type: ignore[arg-type]
         if modality in ("text", "pdf_chunk"):
@@ -99,96 +76,43 @@ class EmbedService:
 
     @property
     def vector_dim(self) -> int:
-        """Output embedding dimension — 1536 for Qwen3-VL-2B."""
+        """Output embedding dimension — 512 for CLIP ViT-B/32."""
         return self._vector_dim
 
-    # ── Private helpers ───────────────────────────────────────────────────────
-
     def _embed_text(self, text: str) -> list[float]:
-        """
-        Tokenise *text* and encode it through the language backbone.
-
-        Uses the LM transformer layers only (no vision encoder) for speed.
-        Mean-pools over non-padding tokens then L2-normalises.
-        """
         inputs = self.processor(
-            text=text,
+            text=[text],
             return_tensors="pt",
+            padding=True,
             truncation=True,
-            max_length=512,
+            max_length=77,
         )
         input_ids = inputs["input_ids"].to(EMBED_DEVICE)
         attention_mask = inputs["attention_mask"].to(EMBED_DEVICE)
-
         with torch.inference_mode():
-            # model.model = language backbone (Qwen3-VL transformer layers)
-            out = self.model.model(
+            text_out = self.model.text_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
             )
-
-        hidden = out.last_hidden_state  # [1, seq_len, 1536]
-        mask = attention_mask.unsqueeze(-1).float()
-        emb = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)
-        return self._l2_normalise(emb.squeeze(0).float().cpu()).tolist()
+            text_features = self.model.text_projection(text_out.pooler_output)
+        return self._l2_normalise(text_features.squeeze(0).float().cpu()).tolist()
 
     def _embed_image(self, bgr_frame: np.ndarray) -> list[float]:
-        """
-        Embed a camera frame through the full Qwen3-VL model.
-
-        The vision encoder reads the image (including labels, barcodes, and
-        packaging text) and merges visual tokens into the transformer sequence.
-        Mean-pooling the last hidden state captures the full visual meaning.
-
-        Args:
-            bgr_frame: H×W×3 uint8 numpy array in BGR channel order (OpenCV).
-
-        Returns:
-            L2-normalised 1536-dim float32 vector.
-        """
         rgb = bgr_frame[:, :, ::-1].copy()
         pil_img = Image.fromarray(rgb.astype(np.uint8))
-
-        # Standard Qwen3-VL chat template with embedded image
-        messages = [{
-            "role": "user",
-            "content": [
-                {"type": "image", "image": pil_img},
-                {"type": "text", "text": "product"},
-            ],
-        }]
-        text_prompt = self.processor.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=False,
-        )
-        inputs = self.processor(
-            text=text_prompt,
-            images=[pil_img],
-            return_tensors="pt",
-        )
-        inputs = {k: v.to(EMBED_DEVICE) for k, v in inputs.items()}
-
+        inputs = self.processor(images=pil_img, return_tensors="pt")
+        pixel_values = inputs["pixel_values"].to(EMBED_DEVICE)
         with torch.inference_mode():
-            outputs = self.model(
-                **inputs,
-                output_hidden_states=True,
-                return_dict=True,
-            )
-
-        # Last hidden state contains fused visual + text token representations
-        last_hidden = outputs.hidden_states[-1]  # [1, seq_len, 1536]
-        emb = last_hidden.mean(dim=1)
-        return self._l2_normalise(emb.squeeze(0).float().cpu()).tolist()
+            vision_out = self.model.vision_model(pixel_values=pixel_values)
+            image_features = self.model.visual_projection(vision_out.pooler_output)
+        return self._l2_normalise(image_features.squeeze(0).float().cpu()).tolist()
 
     def _embed_audio(self, waveform: np.ndarray) -> list[float]:
-        """Route audio to AudioEmbedService (Whisper encoder, 512-dim)."""
         from audio_embed_service import AudioEmbedService  # noqa: PLC0415
         return AudioEmbedService.get_instance().embed_waveform(waveform)
 
     @staticmethod
     def _l2_normalise(tensor: torch.Tensor) -> torch.Tensor:
-        """Return a unit-norm version of *tensor*."""
         norm = tensor.norm(p=2)
         if norm < 1e-12:
             return tensor
