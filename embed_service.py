@@ -47,7 +47,7 @@ class EmbedService:
         return cls._instance
 
     def __init__(self) -> None:
-        from transformers import AutoProcessor, AutoModelForCausalLM  # noqa: PLC0415
+        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration  # noqa: PLC0415
 
         logger.info(
             "Loading Qwen3-VL model '%s' on device '%s' …", EMBED_MODEL_NAME, EMBED_DEVICE
@@ -56,9 +56,8 @@ class EmbedService:
             EMBED_MODEL_NAME,
             trust_remote_code=True,
         )
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model = Qwen3VLForConditionalGeneration.from_pretrained(
             EMBED_MODEL_NAME,
-            trust_remote_code=True,
             torch_dtype=torch.float32,
         )
         self.model = self.model.to(EMBED_DEVICE)
