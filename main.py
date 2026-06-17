@@ -41,6 +41,7 @@ from config import (
     DEFAULT_STORE_ID,
 )
 from embed_service import EmbedService
+from text_embed_service import TextEmbedService
 from models import (
     HealthResponse,
     ProductResult,
@@ -113,20 +114,23 @@ async def lifespan(app: FastAPI):
 
     loop = asyncio.get_running_loop()
 
-    # 1. Load CLIP embedding model (CPU)
+    # 1. Load CLIP embedding model (CPU) — image search
     _embed_svc = await loop.run_in_executor(
         _executor, EmbedService.get_instance
     )
 
-    # 2. Load Whisper audio encoder (CPU) — warm-up before first audio query
+    # 2. Load MiniLM text embedding model (CPU) — text/voice search
+    await loop.run_in_executor(_executor, TextEmbedService.get_instance)
+
+    # 3. Load Whisper audio encoder (CPU) — voice ASR + acoustic search
     _audio_embed_svc = await loop.run_in_executor(
         _executor, AudioEmbedService.get_instance
     )
 
-    # 3. Init Qdrant client
+    # 4. Init Qdrant client
     _qdrant_client = await loop.run_in_executor(_executor, get_qdrant_client)
 
-    # 4. Build collection if it doesn't exist yet
+    # 5. Build collection if it doesn't exist yet
     await loop.run_in_executor(
         _executor,
         partial(
@@ -136,10 +140,10 @@ async def lifespan(app: FastAPI):
         ),
     )
 
-    # 5. Build retriever
+    # 6. Build retriever
     _retriever_svc = RetrieverService(_qdrant_client, _embed_svc)
 
-    # 6. Load Gemma + wire up agent
+    # 7. Load Gemma + wire up agent
     _agent_svc = await loop.run_in_executor(
         _executor,
         partial(AgentService.get_instance, _embed_svc, _retriever_svc),
@@ -271,21 +275,29 @@ async def query_image(
     """
     _require_ready()
 
-    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/bmp"):
+    # PIL handles all common image formats — only hard-reject obvious non-images
+    if file.content_type and file.content_type.startswith("text/"):
         raise HTTPException(
             status_code=422,
-            detail=f"Unsupported image type '{file.content_type}'. Use JPEG or PNG.",
+            detail=f"Expected an image file, got '{file.content_type}'.",
         )
 
     raw_bytes = await file.read()
 
-    def _run():
-        import cv2  # noqa: PLC0415
+    if not raw_bytes:
+        raise HTTPException(status_code=422, detail="Received empty image file. Please try scanning again.")
 
-        arr = np.frombuffer(raw_bytes, dtype=np.uint8)
-        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        if frame is None:
-            raise ValueError("Could not decode uploaded image. Ensure it is a valid JPEG/PNG.")
+    def _run():
+        import io as _io  # noqa: PLC0415
+        from PIL import Image as PILImage  # noqa: PLC0415
+
+        try:
+            pil_img = PILImage.open(_io.BytesIO(raw_bytes)).convert("RGB")
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(f"Could not decode uploaded image: {exc}") from exc
+
+        # Convert PIL RGB → numpy BGR (CLIP expects BGR input like OpenCV)
+        frame = np.array(pil_img)[:, :, ::-1].copy()
 
         products = _retriever_svc.search_by_image(frame, aisle_number=aisle_number)
         # Pass pre-fetched products so Gemma reasons about the same items the UI shows
