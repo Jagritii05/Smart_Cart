@@ -65,7 +65,7 @@ class EmbedService:
 
         # hidden_size is the dimension of mean-pooled last hidden states.
         # Qwen3-VL-2B-Instruct: hidden_size = 1536.
-        self._vector_dim: int = self.model.config.hidden_size
+        self._vector_dim: int = self.model.config.text_config.hidden_size
         logger.info(
             "Qwen3-VL loaded — hidden_size=%d, device=%s",
             self._vector_dim,
