@@ -1,35 +1,31 @@
 import logging
 import sys
-import time
-from huggingface_hub import snapshot_download
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+import subprocess
+
 def main():
-    model_id = "google/gemma-3-4b-it"
-    logger.info(f"Starting download of model {model_id}...")
-    
-    retries = 5
-    for attempt in range(1, retries + 1):
-        try:
-            logger.info(f"Attempt {attempt}/{retries}...")
-            # We download the model. snapshot_download handles resumes by default.
-            path = snapshot_download(
-                repo_id=model_id,
-                resume_download=True,
-                max_workers=4
-            )
-            logger.info(f"Successfully downloaded model to: {path}")
-            break
-        except Exception as e:
-            logger.error(f"Error downloading model: {e}")
-            if attempt < retries:
-                logger.info("Waiting 10 seconds before retrying...")
-                time.sleep(10)
-            else:
-                logger.error("All download retries exhausted.")
-                sys.exit(1)
+    model_id = "gemma4:12b"
+    logger.info(f"Ollama integration active. Pulling model '{model_id}' via Ollama...")
+    try:
+        # Run ollama pull gemma4:12b
+        process = subprocess.Popen(["ollama", "pull", model_id], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        for line in process.stdout:
+            print(line, end="")
+        process.wait()
+        if process.returncode == 0:
+            logger.info(f"Successfully pulled model '{model_id}' via Ollama.")
+        else:
+            logger.error(f"Failed to pull model '{model_id}' (exit code: {process.returncode}).")
+            sys.exit(process.returncode)
+    except FileNotFoundError:
+        logger.error("Ollama CLI not found. Please ensure Ollama is installed and running.")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error pulling model: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

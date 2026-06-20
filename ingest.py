@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from qdrant_client.models import PointStruct
+from qdrant_edge import Point, UpdateOperation
 
 from config import (
     DATA_DIR,
@@ -212,7 +212,7 @@ def ingest(products_path: Optional[Path] = None, store_id: int = DEFAULT_STORE_I
     logger.info("CLIP image dim: %d, text dim: %d", vector_dim, text_svc.vector_dim)
     create_collection(client, vector_dim=vector_dim)
 
-    points: list[PointStruct] = []
+    points: list[Point] = []
     success_count = 0
 
     for idx, product in enumerate(products, start=1):
@@ -267,12 +267,12 @@ def ingest(products_path: Optional[Path] = None, store_id: int = DEFAULT_STORE_I
                 "aisle_number": int(product.get("aisle_number", 0)),
                 "price":        float(product.get("price", 0.0)),
                 "tags":         product.get("tags", []),
-                "stock_status": bool(product.get("stock_status", True)),
+                "stock_status": 1 if bool(product.get("stock_status", True)) else 0,
                 "store_id":     store_id,
                 "description":  description,
             }
 
-            point = PointStruct(
+            point = Point(
                 id=_uuid_to_int(product_id),
                 vector={
                     VECTOR_BARCODE_VISUAL: vis_vec,
@@ -290,16 +290,16 @@ def ingest(products_path: Optional[Path] = None, store_id: int = DEFAULT_STORE_I
 
     # Batch upsert
     if points:
-        client.upsert(collection_name=COLLECTION_NAME, points=points)
+        client.update(UpdateOperation.upsert_points(points))
         logger.info(
-            "Batch upsert complete — %d/%d SKUs ingested into '%s'.",
+            "Batch upsert complete — %d/%d SKUs ingested.",
             success_count,
             len(products),
-            COLLECTION_NAME,
         )
     else:
         logger.warning("No valid points to upsert.")
 
+    client.close()
     return success_count
 
 

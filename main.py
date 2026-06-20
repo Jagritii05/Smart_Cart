@@ -156,6 +156,12 @@ async def lifespan(app: FastAPI):
 
     # Graceful shutdown
     logger.info("Shutting down Smart Cart kiosk …")
+    if _qdrant_client is not None:
+        try:
+            _qdrant_client.close()
+            logger.info("Qdrant Edge client closed.")
+        except Exception as exc:
+            logger.error("Error closing Qdrant Edge client: %s", exc)
     _executor.shutdown(wait=False)
 
 
@@ -413,11 +419,13 @@ async def get_products() -> list[ProductResult]:
     _require_ready()
 
     def _run():
+        from qdrant_edge import ScrollRequest  # noqa: PLC0415
         res, _ = _qdrant_client.scroll(
-            collection_name=COLLECTION_NAME,
-            limit=100,
-            with_payload=True,
-            with_vectors=False,
+            ScrollRequest(
+                limit=100,
+                with_payload=True,
+                with_vector=False,
+            )
         )
         products = []
         for point in res:
@@ -468,12 +476,14 @@ async def update_stock(product_id: str, body: StockUpdateRequest) -> StockUpdate
 
     def _run():
         from ingest import _uuid_to_int  # noqa: PLC0415
+        from qdrant_edge import UpdateOperation  # noqa: PLC0415
 
         point_id = _uuid_to_int(product_id)
-        _qdrant_client.set_payload(
-            collection_name=COLLECTION_NAME,
-            payload={"stock_status": body.stock_status},
-            points=[point_id],
+        _qdrant_client.update(
+            UpdateOperation.set_payload(
+                [point_id],
+                {"stock_status": 1 if body.stock_status else 0},
+            )
         )
 
     try:

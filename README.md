@@ -130,8 +130,8 @@ kiosk-ui/                # Next.js 14 kiosk frontend
 ### 1. Clone and create a virtual environment
 
 ```bash
-git clone https://github.com/Cappybara12/gemma-project.git
-cd gemma-project
+git clone https://github.com/Jagritii05/Smart_Cart.git
+cd Smart_Cart
 python3.11 -m venv .venv
 source .venv/bin/activate          # macOS / Linux
 # .venv\Scripts\activate           # Windows

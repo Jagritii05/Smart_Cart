@@ -5,19 +5,20 @@ RAM for live neural model execution.
 """
 
 import logging
+import os
 from typing import Optional
 
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
+
+from qdrant_edge import (
+    EdgeShard,
+    EdgeConfig,
+    EdgeVectorParams,
     Distance,
-    VectorParams,
     PayloadSchemaType,
-    HnswConfigDiff,
-    OptimizersConfigDiff,
+    UpdateOperation,
 )
 
 from config import (
-    COLLECTION_NAME,
     QDRANT_STORAGE_PATH,
     VECTOR_BARCODE_VISUAL,
     VECTOR_VOICE_QUERY,
@@ -31,132 +32,105 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
-def get_qdrant_client() -> QdrantClient:
+def get_qdrant_client() -> EdgeShard:
     """
-    Return a file-backed QdrantClient using the configured storage path.
-    No server process is required — pure edge mode.
+    Return a file-backed EdgeShard using the configured storage path.
+    If the shard configuration does not exist, initialize it with the 4 named vectors.
     """
-    client = QdrantClient(path=QDRANT_STORAGE_PATH)
-    logger.info("QdrantClient initialised at: %s", QDRANT_STORAGE_PATH)
-    return client
+    os.makedirs(QDRANT_STORAGE_PATH, exist_ok=True)
+    config_file = os.path.join(QDRANT_STORAGE_PATH, "edge_config.json")
+
+    if os.path.exists(config_file):
+        logger.info("Loading existing Qdrant Edge shard from: %s", QDRANT_STORAGE_PATH)
+        return EdgeShard.load(QDRANT_STORAGE_PATH)
+    else:
+        logger.info("Initializing new Qdrant Edge shard at: %s", QDRANT_STORAGE_PATH)
+        named_vectors = {
+            # CLIP image embeddings — 512-dim
+            VECTOR_BARCODE_VISUAL: EdgeVectorParams(
+                size=VECTOR_DIM,
+                distance=Distance.Cosine,
+                on_disk=True,
+            ),
+            # sentence-transformers MiniLM text embeddings — 384-dim
+            VECTOR_VOICE_QUERY: EdgeVectorParams(
+                size=TEXT_EMBED_DIM,
+                distance=Distance.Cosine,
+                on_disk=True,
+            ),
+            VECTOR_NUTRITION_PDF: EdgeVectorParams(
+                size=TEXT_EMBED_DIM,
+                distance=Distance.Cosine,
+                on_disk=True,
+            ),
+            # Whisper acoustic embedding — 512-dim
+            VECTOR_AUDIO_WAVEFORM: EdgeVectorParams(
+                size=WHISPER_EMBED_DIM,
+                distance=Distance.Cosine,
+                on_disk=True,
+            ),
+        }
+        config = EdgeConfig(vectors=named_vectors, on_disk_payload=True)
+        return EdgeShard.create(QDRANT_STORAGE_PATH, config)
 
 
-def create_collection(client: QdrantClient, vector_dim: Optional[int] = None) -> None:
+def create_collection(client: EdgeShard, vector_dim: Optional[int] = None) -> None:
     """
-    Create the 'smart_cart_products' collection with four named vectors.
-
-    barcode_visual  — CLIP 512-dim image embedding space (image search)
-    voice_query     — MiniLM 384-dim text embedding space (text/voice search)
-    nutrition_pdf   — MiniLM 384-dim text embedding space (PDF content)
-    audio_waveform  — Whisper 512-dim acoustic embedding space (raw audio)
-
-    If the collection already exists this function is a no-op.
+    Create the payload indexes for the collection/shard.
+    The vectors schema is already configured during EdgeShard creation.
 
     Args:
-        client:     An initialised QdrantClient instance.
-        vector_dim: CLIP image embedding dim override (default: VECTOR_DIM=512).
+        client:     An initialised EdgeShard instance.
+        vector_dim: Unused, kept for interface compatibility.
     """
-    img_dim = vector_dim or VECTOR_DIM
-
-    existing = [c.name for c in client.get_collections().collections]
-    if COLLECTION_NAME in existing:
-        logger.info("Collection '%s' already exists — skipping creation.", COLLECTION_NAME)
-        return
-
-    named_vectors = {
-        # CLIP image embeddings — 512-dim
-        VECTOR_BARCODE_VISUAL: VectorParams(
-            size=img_dim,
-            distance=Distance.COSINE,
-            on_disk=True,
-            hnsw_config=HnswConfigDiff(on_disk=True),
-        ),
-        # sentence-transformers MiniLM text embeddings — 384-dim
-        VECTOR_VOICE_QUERY: VectorParams(
-            size=TEXT_EMBED_DIM,
-            distance=Distance.COSINE,
-            on_disk=True,
-            hnsw_config=HnswConfigDiff(on_disk=True),
-        ),
-        VECTOR_NUTRITION_PDF: VectorParams(
-            size=TEXT_EMBED_DIM,
-            distance=Distance.COSINE,
-            on_disk=True,
-            hnsw_config=HnswConfigDiff(on_disk=True),
-        ),
-        # Whisper acoustic embedding — 512-dim
-        VECTOR_AUDIO_WAVEFORM: VectorParams(
-            size=WHISPER_EMBED_DIM,
-            distance=Distance.COSINE,
-            on_disk=True,
-            hnsw_config=HnswConfigDiff(on_disk=True),
-        ),
-    }
-
-    client.create_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=named_vectors,
-        optimizers_config=OptimizersConfigDiff(memmap_threshold=10_000),
-    )
-    logger.info(
-        "Collection '%s' created — CLIP img=%d, MiniLM text=%d, Whisper audio=%d, on_disk.",
-        COLLECTION_NAME,
-        img_dim,
-        TEXT_EMBED_DIM,
-        WHISPER_EMBED_DIM,
-    )
-
     _create_payload_indexes(client)
 
 
-def _create_payload_indexes(client: QdrantClient) -> None:
+def _create_payload_indexes(client: EdgeShard) -> None:
     """
     Create payload field indexes to enable fast filtered search.
-    All fields in the Section 3 payload schema are indexed.
     """
     index_map = {
-        "product_id":   PayloadSchemaType.KEYWORD,
-        "name":         PayloadSchemaType.TEXT,
-        "brand":        PayloadSchemaType.KEYWORD,
-        "aisle_number": PayloadSchemaType.INTEGER,
-        "price":        PayloadSchemaType.FLOAT,
-        "tags":         PayloadSchemaType.KEYWORD,
-        "stock_status": PayloadSchemaType.BOOL,
-        "store_id":     PayloadSchemaType.INTEGER,
-        "description":  PayloadSchemaType.TEXT,
+        "product_id":   PayloadSchemaType.Keyword,
+        "name":         PayloadSchemaType.Text,
+        "brand":        PayloadSchemaType.Keyword,
+        "aisle_number": PayloadSchemaType.Integer,
+        "price":        PayloadSchemaType.Float,
+        "tags":         PayloadSchemaType.Keyword,
+        "stock_status": PayloadSchemaType.Integer,
+        "store_id":     PayloadSchemaType.Integer,
+        "description":  PayloadSchemaType.Text,
     }
 
     for field_name, schema_type in index_map.items():
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name=field_name,
-            field_schema=schema_type,
-        )
-        logger.debug("Payload index created: %s (%s)", field_name, schema_type)
+        try:
+            client.update(UpdateOperation.create_field_index(field_name, schema_type))
+            logger.debug("Payload index created: %s (%s)", field_name, schema_type)
+        except Exception as exc:
+            logger.error("Failed to create index for field '%s': %s", field_name, exc)
 
-    logger.info("All payload indexes created for '%s'.", COLLECTION_NAME)
+    logger.info("All payload indexes ensured.")
 
 
-def verify_collection(client: QdrantClient) -> bool:
+def verify_collection(client: EdgeShard) -> bool:
     """
-    Return True if the collection exists and is accessible.
+    Return True if the EdgeShard is accessible.
 
     Args:
-        client: An initialised QdrantClient instance.
+        client: An initialised EdgeShard instance.
 
     Returns:
-        True if the collection exists and responds to info queries.
+        True if the shard responded to info queries.
     """
     try:
-        info = client.get_collection(COLLECTION_NAME)
+        info = client.info()
         logger.info(
-            "Collection '%s' verified — %d points in collection.",
-            COLLECTION_NAME,
+            "Qdrant Edge verified — %d points in shard.",
             info.points_count or 0,
         )
         return True
     except Exception as exc:  # noqa: BLE001
-        logger.error("Collection verification failed: %s", exc)
+        logger.error("Shard verification failed: %s", exc)
         return False
 
 
@@ -165,4 +139,5 @@ if __name__ == "__main__":
     _client = get_qdrant_client()
     create_collection(_client)
     verify_collection(_client)
+    _client.close()
     print("Qdrant Edge setup complete.")

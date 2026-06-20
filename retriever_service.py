@@ -10,8 +10,15 @@ import logging
 from typing import Optional
 
 import numpy as np
-from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny
+from qdrant_edge import (
+    EdgeShard,
+    Filter,
+    FieldCondition,
+    MatchValue,
+    MatchAny,
+    QueryRequest,
+    Query,
+)
 
 from config import (
     COLLECTION_NAME,
@@ -36,7 +43,7 @@ class RetrieverService:
     aisle / tag constraints.
     """
 
-    def __init__(self, client: QdrantClient, embed_service: EmbedService) -> None:
+    def __init__(self, client: EdgeShard, embed_service: EmbedService) -> None:
         self._client = client
         self._embed = embed_service
         self._text_embed = TextEmbedService.get_instance()
@@ -70,7 +77,7 @@ class RetrieverService:
             )
         # Stock filter for visual queries (show only available items)
         conditions.append(
-            FieldCondition(key="stock_status", match=MatchValue(value=True))
+            FieldCondition(key="stock_status", match=MatchValue(value=1))
         )
         return self._query(VECTOR_BARCODE_VISUAL, vector, conditions, top_k)
 
@@ -106,7 +113,7 @@ class RetrieverService:
         vector = self._embed.embed(audio_waveform, modality="audio")
         conditions = self._base_conditions(store_id)
         conditions.append(
-            FieldCondition(key="stock_status", match=MatchValue(value=True))
+            FieldCondition(key="stock_status", match=MatchValue(value=1))
         )
         if tags:
             conditions.append(
@@ -141,7 +148,7 @@ class RetrieverService:
         vector = self._text_embed.embed(query_str)
         conditions = self._base_conditions(store_id)
         conditions.append(
-            FieldCondition(key="stock_status", match=MatchValue(value=True))
+            FieldCondition(key="stock_status", match=MatchValue(value=1))
         )
         if tags:
             conditions.append(
@@ -177,15 +184,14 @@ class RetrieverService:
         query_filter = Filter(must=conditions) if conditions else None
 
         try:
-            result = self._client.query_points(
-                collection_name=COLLECTION_NAME,
-                using=vector_name,
-                query=vector,
-                query_filter=query_filter,
-                limit=top_k,
-                with_payload=True,
+            hits = self._client.query(
+                QueryRequest(
+                    query=Query.Nearest(query=vector, using=vector_name),
+                    limit=top_k,
+                    filter=query_filter,
+                    with_payload=True,
+                )
             )
-            hits = result.points
         except Exception as exc:  # noqa: BLE001
             logger.error("Qdrant search failed on vector '%s': %s", vector_name, exc)
             return []

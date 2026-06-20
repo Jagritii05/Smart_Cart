@@ -9,15 +9,11 @@ import threading
 from typing import Literal, Optional
 
 import numpy as np
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import requests
 
 from config import (
     REASONING_MODEL_NAME,
-    REASONING_DEVICE,
-    USE_CUDA,
-    GEMMA_LOAD_IN_4BIT,
-    GEMMA_LOAD_IN_8BIT,
+    OLLAMA_API_URL,
     TTS_RATE,
     TTS_VOLUME,
 )
@@ -81,7 +77,7 @@ class AgentService:
         self._embed = embed_service
         self._retriever = retriever_service
         self._tts_engine = self._init_tts()
-        self._llm, self._tokenizer = self._load_gemma()
+        self._load_gemma()
         logger.info("AgentService ready.")
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -188,76 +184,55 @@ class AgentService:
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": context},
         ]
-        prompt = self._tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-
-        inputs = self._tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True,
-            max_length=2048,
-        ).to(REASONING_DEVICE)
-
-        with torch.no_grad():
-            output_ids = self._llm.generate(
-                **inputs,
-                max_new_tokens=256,
-                do_sample=False,
-                temperature=1.0,
-                repetition_penalty=1.1,
-                pad_token_id=self._tokenizer.eos_token_id,
+        payload = {
+            "model": REASONING_MODEL_NAME,
+            "messages": messages,
+            "stream": False,
+            "think": False,
+            "options": {
+                "temperature": 1.0,
+                "repeat_penalty": 1.1,
+                "num_predict": 128,  # prevent long generation timeouts, limit to 2-3 sentences
+            }
+        }
+        try:
+            response = requests.post(OLLAMA_API_URL, json=payload, timeout=90)
+            response.raise_for_status()
+            res_json = response.json()
+            response_text = res_json["message"]["content"].strip()
+            logger.debug("Gemma response: %s", response_text[:120])
+            return response_text
+        except Exception as exc:
+            logger.error("Failed to generate response from Ollama: %s", exc)
+            return (
+                "I'm sorry, I encountered an issue connecting to my reasoning engine. "
+                "Please try again in a moment."
             )
 
-        # Decode only the newly generated tokens
-        new_tokens = output_ids[0][inputs["input_ids"].shape[-1]:]
-        response = self._tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-        logger.debug("Gemma response: %s", response[:120])
-        return response
-
-    def _load_gemma(self) -> tuple:
+    def _load_gemma(self) -> None:
         """
-        Load Gemma with QAT quantization appropriate for the current device.
-
-        Returns:
-            Tuple of (model, tokenizer).
+        Verify that the Ollama service is reachable and the model is pulled.
         """
-        logger.info(
-            "Loading reasoning model '%s' — 4bit=%s, 8bit=%s …",
-            REASONING_MODEL_NAME,
-            GEMMA_LOAD_IN_4BIT,
-            GEMMA_LOAD_IN_8BIT,
-        )
-        tokenizer = AutoTokenizer.from_pretrained(
-            REASONING_MODEL_NAME, trust_remote_code=True
-        )
-
-        if GEMMA_LOAD_IN_4BIT and REASONING_DEVICE == "cuda":
-            quant_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.float16,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4",
-            )
-            model = AutoModelForCausalLM.from_pretrained(
-                REASONING_MODEL_NAME,
-                quantization_config=quant_config,
-                device_map="auto",
-            )
-        else:
-            # CPU / MPS: device_map is not supported on these backends.
-            # Load to CPU first (safe), then move to target device.
-            model = AutoModelForCausalLM.from_pretrained(
-                REASONING_MODEL_NAME,
-                torch_dtype=torch.float32,
-            )
-            model = model.to(REASONING_DEVICE)
-
-        model.eval()
-        logger.info("Reasoning model loaded.")
-        return model, tokenizer
+        logger.info("Verifying Ollama service at '%s' for model '%s' ...", OLLAMA_API_URL, REASONING_MODEL_NAME)
+        # Verify connection by checking base endpoint (strip /api/chat)
+        base_url = OLLAMA_API_URL.rsplit("/api/", 1)[0]
+        try:
+            version_response = requests.get(f"{base_url}/api/tags", timeout=5)
+            version_response.raise_for_status()
+            models_list = [m["name"] for m in version_response.json().get("models", [])]
+            logger.info("Currently installed Ollama models: %s", models_list)
+            
+            if REASONING_MODEL_NAME not in models_list and f"{REASONING_MODEL_NAME}:latest" not in models_list:
+                logger.warning(
+                    "Model '%s' not yet found in local Ollama list. "
+                    "Make sure to run 'ollama pull %s' if queries fail.",
+                    REASONING_MODEL_NAME,
+                    REASONING_MODEL_NAME
+                )
+            else:
+                logger.info("Ollama verification successful.")
+        except Exception as exc:
+            logger.error("Ollama connection check failed: %s. Is Ollama running?", exc)
 
     def _init_tts(self) -> bool:
         """

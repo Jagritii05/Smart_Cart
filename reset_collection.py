@@ -14,12 +14,13 @@ WARNING: This is destructive — all ingested product vectors will be lost.
 
 import argparse
 import logging
+import os
+import shutil
 import sys
 
-from qdrant_client import QdrantClient
-
-from config import COLLECTION_NAME, QDRANT_STORAGE_PATH
-from qdrant_setup import get_qdrant_client, verify_collection
+from qdrant_edge import EdgeShard
+from config import QDRANT_STORAGE_PATH
+from qdrant_setup import get_qdrant_client, verify_collection, create_collection
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,38 +29,34 @@ logging.basicConfig(
 logger = logging.getLogger("reset_collection")
 
 
-def reset(client: QdrantClient) -> None:
+def reset(client: EdgeShard) -> None:
     """
-    Delete the existing collection (if present) and recreate it with the
-    current schema defined in qdrant_setup.create_collection.
+    Delete the local Qdrant Edge shard storage directory and recreate it
+    with the current schema.
 
     Args:
-        client: An initialised QdrantClient instance.
+        client: An initialised EdgeShard instance.
     """
-    existing = [c.name for c in client.get_collections().collections]
+    logger.info("Closing active Qdrant Edge shard...")
+    client.close()
 
-    if COLLECTION_NAME in existing:
-        logger.info("Deleting existing collection '%s' …", COLLECTION_NAME)
-        client.delete_collection(COLLECTION_NAME)
-        logger.info("Collection '%s' deleted.", COLLECTION_NAME)
+    if os.path.exists(QDRANT_STORAGE_PATH):
+        logger.info("Deleting local Qdrant Edge storage directory: %s", QDRANT_STORAGE_PATH)
+        try:
+            shutil.rmtree(QDRANT_STORAGE_PATH)
+            logger.info("Local storage deleted successfully.")
+        except Exception as exc:
+            logger.error("Failed to delete local storage directory: %s", exc)
+            sys.exit(1)
     else:
-        logger.info("Collection '%s' does not exist — nothing to delete.", COLLECTION_NAME)
+        logger.info("Storage directory '%s' does not exist.", QDRANT_STORAGE_PATH)
 
-    # Re-create with the new schema (resolves vector_dim from EmbedService)
-    from embed_service import EmbedService          # noqa: PLC0415
-    from qdrant_setup import create_collection      # noqa: PLC0415
-
-    logger.info("Loading embedding model to resolve vector dimension …")
-    embed_svc = EmbedService.get_instance()
-    vector_dim = embed_svc.vector_dim
-    logger.info("Vector dim resolved: %d", vector_dim)
-
-    create_collection(client, vector_dim=vector_dim)
-    logger.info(
-        "Collection '%s' recreated — ready for ingest.py.",
-        COLLECTION_NAME,
-    )
-    verify_collection(client)
+    logger.info("Reinitializing Qdrant Edge shard...")
+    new_client = get_qdrant_client()
+    create_collection(new_client)
+    logger.info("Collection recreated — ready for ingest.py.")
+    verify_collection(new_client)
+    new_client.close()
 
 
 if __name__ == "__main__":
@@ -75,7 +72,7 @@ if __name__ == "__main__":
 
     if not args.confirm:
         print(
-            f"\n⚠️  This will DELETE all data in collection '{COLLECTION_NAME}'.\n"
+            f"\n⚠️  This will DELETE all local vector data in '{QDRANT_STORAGE_PATH}'.\n"
             "   You must re-run  python ingest.py  afterwards to rebuild the index.\n"
         )
         answer = input("Type 'yes' to confirm: ").strip().lower()

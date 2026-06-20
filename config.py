@@ -21,7 +21,8 @@ QDRANT_STORAGE_PATH: str = str(BASE_DIR / "qdrant_storage")
 # space by design. Used for all text/voice queries and image search.
 # Qwen3-VL handles camera frames via its vision encoder (image modality only).
 EMBED_MODEL_NAME: str = "openai/clip-vit-base-patch32"
-REASONING_MODEL_NAME: str = "google/gemma-3-4b-it"   # Gemma 3 4B — requires HF token + accepted terms
+REASONING_MODEL_NAME: str = "gemma4:12b"   # Gemma 4 12B via Ollama
+OLLAMA_API_URL: str = "http://localhost:11434/api/chat"
 WHISPER_MODEL_NAME: str = "openai/whisper-base"       # Whisper-base for audio encoder + ASR
 
 # ─── Qdrant Collection ─────────────────────────────────────────────────────────
