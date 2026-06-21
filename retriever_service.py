@@ -25,6 +25,7 @@ from config import (
     VECTOR_BARCODE_VISUAL,
     VECTOR_VOICE_QUERY,
     VECTOR_AUDIO_WAVEFORM,
+    VECTOR_NUTRITION_PDF,
     DEFAULT_STORE_ID,
     DEFAULT_TOP_K,
 )
@@ -130,11 +131,11 @@ class RetrieverService:
         top_k: int = DEFAULT_TOP_K,
     ) -> list[dict]:
         """
-        Embed a text query string and search the voice_query vector index.
+        Embed a text query string and search the voice_query or nutrition_pdf vector index.
 
-        Identical filter logic to :meth:`search_by_voice` — both use the
-        voice_query named vector because spoken and typed queries occupy
-        the same region of the embedding space.
+        Automatically extracts dietary tags from the query string to apply strict
+        filtering, and dynamically queries the nutrition_pdf index if the query
+        relates to ingredients, nutrition, or allergens.
 
         Args:
             query_str: Natural-language text query from the customer.
@@ -145,6 +146,61 @@ class RetrieverService:
         Returns:
             List of in-stock product dicts sorted by descending similarity score.
         """
+        normalized_query = query_str.lower()
+
+        # 1. Automatically extract dietary/product tags from the text query
+        all_known_tags = [
+            "vegetarian", "dairy", "vegan", "dairy-free", "gluten-free",
+            "low-sugar", "organic", "caffeine-low", "no-maida", "kids-friendly",
+            "high-fibre", "probiotic", "high-protein", "non-gmo", "calcium-rich",
+            "superfood", "iron-rich", "keto"
+        ]
+        
+        extracted_tags = []
+        tag_mappings = {
+            "gluten-free": ["gluten-free", "gluten free"],
+            "dairy-free": ["dairy-free", "dairy free", "lactose-free", "lactose free", "no milk", "milk-free", "milk free"],
+            "vegan": ["vegan", "plant-based", "plant based"],
+            "vegetarian": ["vegetarian", "veg"],
+            "organic": ["organic", "natural"],
+            "low-sugar": ["low-sugar", "low sugar", "sugar-free", "sugar free", "no sugar"],
+            "high-protein": ["high-protein", "high protein", "protein rich", "protein-rich"],
+            "high-fibre": ["high-fibre", "high fibre", "fibre rich", "fiber rich", "high-fiber", "high fiber"],
+            "probiotic": ["probiotic", "yogurt culture"],
+            "kids-friendly": ["kids-friendly", "kids friendly", "for kids", "children-friendly", "children friendly"],
+            "calcium-rich": ["calcium-rich", "calcium rich", "calcium"],
+            "iron-rich": ["iron-rich", "iron rich", "iron"],
+            "keto": ["keto", "ketogenic"],
+            "no-maida": ["no-maida", "no maida", "maida free", "maida-free"],
+        }
+        
+        for tag, keywords in tag_mappings.items():
+            if any(kw in normalized_query for kw in keywords):
+                extracted_tags.append(tag)
+        
+        for tag in all_known_tags:
+            if tag not in tag_mappings and tag in normalized_query:
+                extracted_tags.append(tag)
+                
+        if extracted_tags:
+            if tags is None:
+                tags = extracted_tags
+            else:
+                tags = list(set(tags + extracted_tags))
+            logger.info("Automatically extracted filter tags from query: %s", tags)
+
+        # 2. Dynamic routing to VECTOR_NUTRITION_PDF if query is about nutrition/ingredients/allergens
+        pdf_keywords = [
+            "nutrition", "ingredient", "allergen", "allergy", "allergic", "protein", "sugar",
+            "calorie", "fat", "carb", "sodium", "cholesterol", "diet", "healthy",
+            "organic", "contains", "contents", "pdf", "sheet", "profile"
+        ]
+        use_pdf_index = any(kw in normalized_query for kw in pdf_keywords)
+        vector_name = VECTOR_NUTRITION_PDF if use_pdf_index else VECTOR_VOICE_QUERY
+        
+        if use_pdf_index:
+            logger.info("Routing query to nutrition PDF vector index: %s", query_str)
+
         vector = self._text_embed.embed(query_str)
         conditions = self._base_conditions(store_id)
         conditions.append(
@@ -154,7 +210,7 @@ class RetrieverService:
             conditions.append(
                 FieldCondition(key="tags", match=MatchAny(any=tags))
             )
-        return self._query(VECTOR_VOICE_QUERY, vector, conditions, top_k)
+        return self._query(vector_name, vector, conditions, top_k)
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
